@@ -1,4 +1,3 @@
-import pickle
 import math
 import string
 
@@ -12,7 +11,6 @@ engLetter_freq = {
 
 engCoinIndex = 0.0667
 theABC = string.ascii_uppercase
-trigrams = pickle.load(open('trigrams', 'rb'))
 
 relPrime = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25] # взаимно простые с 26
 
@@ -46,5 +44,53 @@ with open('Affine.txt', 'r') as file:
 		for b in range(26):
 			result.append((sumCharsFreqInMessage(AfineDecrypt(msg, [a, b])), a, b))
 	final_key_pair = max(result, key=lambda x: x[0])
+	
+	print('_____________Афинный шрифт___________________')
 	print(final_key_pair)
 	print('Дешифрованный текст: ', AfineDecrypt(msg, [final_key_pair[1], final_key_pair[2]]))
+
+#------------------------------------------------------------------------------------------------------------------------------------------------
+def countLetters(msg):
+	return {letter: msg.count(letter) for letter in theABC}
+
+def indexCoin(msg):
+	return sum([dict.get(countLetters(msg), letter, 0)* (dict.get(countLetters(msg), letter, 0) - 1) / (len(msg)*(len(msg) - 1)) for letter in theABC])
+
+def shiftCoin(msg):
+	shiftedCoinDict = {}
+	for i in range(1, 26):
+		text = ''.join([msg[k] for k in range(0, len(msg), i)])
+		shiftedCoinDict[i] = indexCoin(text)
+	return shiftedCoinDict
+
+def findKeyLenght(msg):
+	return min([(index, coin) for index, coin in shiftCoin(msg).items() if abs(coin - engCoinIndex) < engCoinIndex * 0.1], key=lambda k: k[0])[0]
+
+def shiftABC(letter, offset):
+	return theABC[(theABC.index(letter)+offset)%26]
+
+def probableKey(msg):
+	keys=[]
+	for i in range(26):
+		text = ''.join(map(shiftABC, list(msg), [26-i,]*len(msg)))
+		keys.append((i, sumCharsFreqInMessage(text)))
+	return max(keys, key=lambda x: x[1])
+
+def findKey(msg, keylen):
+	key = []
+	for i in range(keylen):
+		text = ''.join([msg[k] for k in range(i, len(msg), keylen)])
+		keyPart = probableKey(text)
+		key.append(theABC[keyPart[0]])
+	return ''.join(key)
+
+with open('Vigenere.txt', 'r') as file:
+	msg = file.read()
+	keyLen = findKeyLenght(msg)
+	key = findKey(msg, keyLen)
+	print('_____________Шрифт Вижинера___________________')
+	print('Длина ключа = ', keyLen)
+	print('Ключ = ', key)
+
+	VigenereDecrypt = ''.join(map(shiftABC, msg, list(map(lambda x: 26-theABC.index(x), key))*(len(msg)//len(key)+1)))
+	print('Дешифрованный текст: ', VigenereDecrypt)
